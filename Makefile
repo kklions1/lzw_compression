@@ -8,8 +8,5 @@ lzw: lzw435.cpp lzw435M.cpp
 .PHONY clean:
 clean: 
 	rm -rf lzw435 lzw435M 
-
-.PHONY test:
-test: lzw
-	cp lzw435 testcases/lzw435
-	cp lzw435M testcases/lzw435M
+	rm -rf *.lzw *.lzw2
+	rm -rf *2.*	

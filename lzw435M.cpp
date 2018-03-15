@@ -9,7 +9,140 @@
 /*
   This code is derived from LZW@RosettaCode for UA CS435 
 */ 
+
+std::string int2BinaryString(int c, int cl); 
+int binaryString2Int(std::string p);
  
+std::string readFileBlockIO(std::string filename) { 
+  std::ifstream inputFile(filename.c_str(), std::ios::binary);
+  std::streampos begin;
+  std::streampos end;
+
+  begin = inputFile.tellg();
+  inputFile.seekg(0, std::ios::end);
+  end = inputFile.tellg();
+  inputFile.seekg(0, std::ios::beg);
+
+  std::streampos size = end - begin;
+
+  char* memoryBlock = new char[size];
+
+  inputFile.read(memoryBlock, size);
+  memoryBlock[size] = '\0';
+
+  inputFile.close();
+
+  return std::string(memoryBlock, size);
+}
+
+void writeFile(std::vector<int> compressed, std::string filename) { 
+  // int c = 69;
+  int bits = 9;
+  int words = 0;
+  std::string p;
+  // std::string p = int2BinaryString(c, bits);
+  // std::cout << "c=" << c <<" : binary string="<<p<<"; back to code=" << binaryString2Int(p)<<"\n";
+
+  std::string bcode= "";
+  for (std::vector<int>::iterator it = compressed.begin() ; it != compressed.end(); ++it) {
+    if (words == (1 << (bits - 1)) && bits < 16) {
+      ++bits;
+      words = 0;
+    }
+    
+    // if (*it<256) { 
+    //   bits = 8;
+    // } else { 
+    //   bits = 9;
+    // }
+    // bits = 12;
+    p = int2BinaryString(*it, bits);
+    // std::cout << "c=" << *it << " : binary string=" << p << "; back to code=" << binaryString2Int(p) << "\n";
+    bcode+=p;
+    words++;
+  }
+
+  std::ofstream outputFile(filename.c_str(), std::ios::binary);
+
+  std::string zeros = "00000000";
+  if (bcode.size()%8!=0) {  //make sure the length of the binary string is a multiple of 8
+     bcode += zeros.substr(0, 8-bcode.size()%8);
+  }
+
+  int b; 
+  // The lack of spaces disturbs me
+  for (int i = 0; i < bcode.size(); i += 8) { 
+     b = 1;
+     for (int j = 0; j < 8; j++) {
+        b = b << 1;
+        if (bcode.at(i+j) == '1') { 
+          b += 1;
+        }
+     }
+     char c = (char) (b & 255); //save the string byte by byte
+     outputFile.write(&c, 1);  
+  }
+  outputFile.close();
+}
+
+std::vector<int> readBinaryFile(std::string filename) { 
+  std::ifstream myfile2(filename.c_str(),  std::ios::binary);
+   
+  std::string zeros = "00000000";
+
+  struct stat filestatus;
+  stat(filename.c_str(), &filestatus);
+  long fsize = filestatus.st_size; //get the size of the file in bytes
+  
+  char c2[fsize];
+  myfile2.read(c2, fsize);
+  
+  std::string s = "";
+  long count = 0;
+
+  while (count < fsize) {
+    unsigned char uc =  (unsigned char) c2[count];
+    std::string p = ""; //a binary string
+
+    for (int j = 0; j < 8 && uc > 0; j++) {         
+	    if (uc % 2 == 0) { 
+        p = "0" + p;
+      } else {
+        p = "1" + p;
+      }
+        uc = uc >> 1;   
+    }
+
+    p = zeros.substr(0, 8-p.size()) + p; //pad 0s to left if needed
+    // result.push_back(binaryString2Int(p)); 
+    s += p;
+    count++;
+  } 
+  myfile2.close();
+
+  int bits = 9;
+  int segments = 0;
+  std::vector<int> result;
+  
+  for (int current = 0; current < s.size(); current += bits) { 
+    if (bits < 16 && segments == 1 << (bits - 1)) { 
+      ++bits;
+      segments = 0;
+    }
+
+    if (s.size() - current + 1 < bits) { 
+      break;
+    }
+
+    std::string currentSegment(&s[current], bits);
+    result.push_back(binaryString2Int(currentSegment));
+    ++segments;
+  } 
+
+  return result;
+}
+
+
 // Compress a string to a list of output symbols.
 // The result will be written to the output iterator
 // starting at "result"; the final iterator is returned.
@@ -30,8 +163,8 @@ Iterator compress(const std::string &uncompressed, Iterator result) {
       w = wc;
     else {
       *result++ = dictionary[w];
-      // Add wc to the dictionary. Assuming the size is 4096!!!
-      if (dictionary.size()<4096)
+      // Add wc to the dictionary. Assuming the size is 2^16!!!
+      if (dictionary.size() < (1 << 16))
          dictionary[wc] = dictSize++;
       w = std::string(1, c);
     }
@@ -55,21 +188,20 @@ std::string decompress(Iterator begin, Iterator end) {
  
   std::string w(1, *begin++);
   std::string result = w;
-  std::cout << result<<"???:::\n";
   std::string entry;
   for ( ; begin != end; begin++) {
     int k = *begin;
-    if (dictionary.count(k))
+    if (dictionary.count(k)) { 
       entry = dictionary[k];
-    else if (k == dictSize)
+    } else if (k == dictSize) {
       entry = w + w[0];
-    else
+    } else {
       throw "Bad compressed k";
- 
+    }
     result += entry;
  
     // Add w+entry[0] to the dictionary.
-    if (dictionary.size()<4096)
+    if (dictionary.size() < (1 << 16)) 
       dictionary[dictSize++] = w + entry[0];
  
     w = entry;
@@ -114,89 +246,43 @@ int binaryString2Int(std::string p) {
    }
    return code;
 }
-
-void binaryIODemo(std::vector<int> compressed) {
-   int c = 69;
-   int bits = 9;
-   std::string p = int2BinaryString(c, bits);
-   std::cout << "c=" << c <<" : binary string="<<p<<"; back to code=" << binaryString2Int(p)<<"\n";
-   
-   std::string bcode= "";
-   for (std::vector<int>::iterator it = compressed.begin() ; it != compressed.end(); ++it) {
-      if (*it<256)
-         bits = 8;
-      else
-         bits = 9;
-      
-      bits = 12;
-      p = int2BinaryString(*it, bits);
-      std::cout << "c=" << *it <<" : binary string="<<p<<"; back to code=" << binaryString2Int(p)<<"\n";
-      bcode+=p;
-   }
-   
-   //writing to file
-   std::cout << "string 2 save : "<<bcode << "\n";
-   std::string fileName = "example435.lzw";
-   std::ofstream myfile;
-   myfile.open(fileName.c_str(),  std::ios::binary);
-   
-   std::string zeros = "00000000";
-   if (bcode.size()%8!=0) //make sure the length of the binary string is a multiple of 8
-      bcode += zeros.substr(0, 8-bcode.size()%8);
-   
-   int b; 
-   for (int i = 0; i < bcode.size(); i+=8) { 
-      b = 1;
-      for (int j = 0; j < 8; j++) {
-         b = b<<1;
-         if (bcode.at(i+j) == '1')
-           b+=1;
-      }
-      char c = (char) (b & 255); //save the string byte by byte
-      myfile.write(&c, 1);  
-   }
-   myfile.close();
-   
-   //reading from a file
-   std::ifstream myfile2;
-   myfile2.open (fileName.c_str(),  std::ios::binary);
-   
-   struct stat filestatus;
-   stat(fileName.c_str(), &filestatus );
-   long fsize = filestatus.st_size; //get the size of the file in bytes
-   
-   char c2[fsize];
-   myfile2.read(c2, fsize);
-   
-   std::string s = "";
-   long count = 0;
-   while(count<fsize) {
-      unsigned char uc =  (unsigned char) c2[count];
-      std::string p = ""; //a binary string
-      for (int j=0; j<8 && uc>0; j++) {         
-		   if (uc%2==0)
-            p="0"+p;
-         else
-            p="1"+p;
-         uc=uc>>1;   
-      }
-      p = zeros.substr(0, 8-p.size()) + p; //pad 0s to left if needed
-      s+= p; 
-      count++;
-   } 
-   myfile2.close();
-   std::cout << " saved string : "<<s << "\n"; 
-}
  
-int main() {
-  std::vector<int> compressed;
-  compress("AAAAAAABBBBBB", std::back_inserter(compressed));
-  copy(compressed.begin(), compressed.end(), std::ostream_iterator<int>(std::cout, ", "));
-  std::cout << std::endl;
-  std::string decompressed = decompress(compressed.begin(), compressed.end());
-  std::cout << decompressed << std::endl;
-  
-  binaryIODemo(compressed);
-  
-  return 0;
+int main(int argc, char* argv[]) {
+  try { 
+  std::ifstream inputfile;
+  std::string filename(argv[2]);
+
+  if (*argv[1] == 'c') { 
+    // Compress
+    std::string document = readFileBlockIO(filename);
+    std::vector<int> compressedDocument;
+    compress(document, std::back_inserter(compressedDocument));
+    
+    filename += ".lzw2";
+
+    writeFile(compressedDocument, filename);
+  }
+
+  if (*argv[1] == 'e') { 
+    // Expand
+    std::vector<int> compressedDocument = readBinaryFile(filename);
+    std::cout << "print\n";
+    std::string document = decompress(compressedDocument.begin(), compressedDocument.end());
+    std::cout << "print2\n";  
+    
+
+    filename = filename.substr(0, filename.find_last_of("."));
+    auto extension = filename.find_first_of(".");
+    if (extension != std::string::npos) { 
+      filename.insert(filename.find_first_of("."), "2");
+    } else { 
+      filename += 2;
+    }
+ 
+    std::ofstream outputFile(filename, std::ios::binary);
+    outputFile.write(document.data(), document.size());
+  }
+  } catch (const char* e) { 
+    std::cout << "An exception was thrown: " << e << std::endl;
+  }
 }
