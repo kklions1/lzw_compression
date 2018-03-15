@@ -40,7 +40,6 @@ void writeFile(std::vector<int> compressed, std::string filename) {
   int c = 69;
   int bits = 9;
   std::string p = int2BinaryString(c, bits);
-  std::cout << "c=" << c <<" : binary string="<<p<<"; back to code=" << binaryString2Int(p)<<"\n";
 
   std::string bcode= "";
   for (std::vector<int>::iterator it = compressed.begin() ; it != compressed.end(); ++it) {
@@ -51,7 +50,6 @@ void writeFile(std::vector<int> compressed, std::string filename) {
     }
     bits = 12;
     p = int2BinaryString(*it, bits);
-    std::cout << "c=" << *it << " : binary string=" << p << "; back to code=" << binaryString2Int(p) << "\n";
     bcode+=p;
   }
 
@@ -102,7 +100,6 @@ std::vector<int> readBinaryFile(std::string filename) {
         uc=uc>>1;   
      }
     p = zeros.substr(0, 8-p.size()) + p; //pad 0s to left if needed
-    // result.push_back(binaryString2Int(p)); 
     s += p;
     count++;
   } 
@@ -246,10 +243,7 @@ int main(int argc, char* argv[]) {
   if (*argv[1] == 'e') { 
     // Expand
     std::vector<int> compressedDocument = readBinaryFile(filename);
-    std::cout << "print\n";
-    std::string document = decompress(compressedDocument.begin(), compressedDocument.end());
-    std::cout << "print2\n";  
-    
+    std::string document = decompress(compressedDocument.begin(), compressedDocument.end());    
 
     filename = filename.substr(0, filename.find_last_of("."));
     auto extension = filename.find_first_of(".");

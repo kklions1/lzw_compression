@@ -249,39 +249,37 @@ int binaryString2Int(std::string p) {
  
 int main(int argc, char* argv[]) {
   try { 
-  std::ifstream inputfile;
-  std::string filename(argv[2]);
+    std::ifstream inputfile;
+    std::string filename(argv[2]);
 
-  if (*argv[1] == 'c') { 
-    // Compress
-    std::string document = readFileBlockIO(filename);
-    std::vector<int> compressedDocument;
-    compress(document, std::back_inserter(compressedDocument));
-    
-    filename += ".lzw2";
+    if (*argv[1] == 'c') { 
+      // Compress
+      std::string document = readFileBlockIO(filename);
+      std::vector<int> compressedDocument;
+      compress(document, std::back_inserter(compressedDocument));
 
-    writeFile(compressedDocument, filename);
-  }
+      filename += ".lzw2";
 
-  if (*argv[1] == 'e') { 
-    // Expand
-    std::vector<int> compressedDocument = readBinaryFile(filename);
-    std::cout << "print\n";
-    std::string document = decompress(compressedDocument.begin(), compressedDocument.end());
-    std::cout << "print2\n";  
-    
-
-    filename = filename.substr(0, filename.find_last_of("."));
-    auto extension = filename.find_first_of(".");
-    if (extension != std::string::npos) { 
-      filename.insert(filename.find_first_of("."), "2");
-    } else { 
-      filename += 2;
+      writeFile(compressedDocument, filename);
     }
+
+    if (*argv[1] == 'e') { 
+      // Expand
+      std::vector<int> compressedDocument = readBinaryFile(filename);
+      std::string document = decompress(compressedDocument.begin(), compressedDocument.end());
+
+
+      filename = filename.substr(0, filename.find_last_of("."));
+      auto extension = filename.find_first_of(".");
+      if (extension != std::string::npos) { 
+        filename.insert(filename.find_first_of("."), "2");
+      } else { 
+      filename += 2;
+      }
  
-    std::ofstream outputFile(filename, std::ios::binary);
-    outputFile.write(document.data(), document.size());
-  }
+      std::ofstream outputFile(filename, std::ios::binary);
+      outputFile.write(document.data(), document.size());
+    }
   } catch (const char* e) { 
     std::cout << "An exception was thrown: " << e << std::endl;
   }
